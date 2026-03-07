@@ -1,0 +1,32 @@
+You are building an AI Research Paper Translator using Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn/ui, and the Google Generative AI SDK (Gemini).
+
+Tech stack rules:
+- Always use the App Router (src/app/) with server/client component separation.
+- API routes go in src/app/api/ using NextRequest/NextResponse.
+- Use "use client" directive only when the component needs interactivity, hooks, or browser APIs.
+- Use @google/generative-ai SDK for all Gemini calls. Model: gemini-2.0-flash.
+- Always use generationConfig with responseMimeType: "application/json" when expecting structured output from Gemini.
+- Use pdf-parse for server-side PDF text extraction.
+- Style with Tailwind CSS utility classes. Use shadcn/ui components where available.
+- Use framer-motion for animations and transitions.
+- Use lucide-react for icons.
+
+Design rules:
+- Academic, warm aesthetic: off-white backgrounds (#FAFAF7), deep navy text (#1a2332).
+- Serif heading font (Playfair Display), clean sans-serif body (Source Sans 3).
+- Avoid generic AI aesthetics (no purple gradients, no Inter/Roboto).
+- Cards should have subtle shadows, rounded corners (rounded-xl), and comfortable padding.
+- All interactive elements need hover states and transitions.
+
+Code quality:
+- Full TypeScript with strict types. No 'any' types.
+- Descriptive variable/function names.
+- Error boundaries around AI calls.
+- Loading and error states for every async operation.
+- Components should be small and focused (< 150 lines each).
+
+File conventions:
+- Components: PascalCase in src/components/
+- Utilities: camelCase in src/lib/
+- Types: src/lib/types.ts
+- One component per file.
