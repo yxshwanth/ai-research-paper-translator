@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@auth0/nextjs-auth0/client";
 import { motion } from "framer-motion";
-import { FileText, ExternalLink, ArrowLeft } from "lucide-react";
+import { FileText, ExternalLink, ArrowLeft, GitCompare, Trash2, Loader2 } from "lucide-react";
 
 interface AnalysisItem {
   slug: string;
@@ -17,6 +17,7 @@ export default function DashboardPage() {
   const [analyses, setAnalyses] = useState<AnalysisItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -38,6 +39,27 @@ export default function DashboardPage() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [user]);
+
+  const handleDelete = async (slug: string, fileName: string | null) => {
+    if (!confirm(`Delete "${fileName ?? "this paper"}"? This cannot be undone.`)) return;
+    setDeletingSlug(slug);
+    setError(null);
+    try {
+      const res = await fetch(`/api/analyses/${slug}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to delete");
+      }
+      setAnalyses((prev) => prev.filter((a) => a.slug !== slug));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete paper.");
+    } finally {
+      setDeletingSlug(null);
+    }
+  };
 
   if (userLoading || (!user && loading)) {
     return (
@@ -81,15 +103,26 @@ export default function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         className="mx-auto max-w-3xl"
       >
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
           <h1 className="text-4xl font-heading text-foreground">My Papers</h1>
-          <Link
-            href="/"
-            className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Analyze another
-          </Link>
+          <div className="flex items-center gap-2">
+            {analyses.length >= 2 && (
+              <Link
+                href="/compare"
+                className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
+              >
+                <GitCompare className="h-4 w-4" />
+                Compare papers
+              </Link>
+            )}
+            <Link
+              href="/"
+              className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm transition-colors hover:bg-muted"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Analyze another
+            </Link>
+          </div>
         </div>
 
         {error && (
@@ -131,15 +164,30 @@ export default function DashboardPage() {
                     {new Date(a.createdAt).toLocaleDateString()}
                   </p>
                 </div>
-                <a
-                  href={`/share/${a.slug}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  View
-                </a>
+                <div className="flex items-center gap-2">
+                  <a
+                    href={`/share/${a.slug}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-muted"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    View
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(a.slug, a.fileName)}
+                    disabled={deletingSlug === a.slug}
+                    className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                    title="Delete paper"
+                  >
+                    {deletingSlug === a.slug ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

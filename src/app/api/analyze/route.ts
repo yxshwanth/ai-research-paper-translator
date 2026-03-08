@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
-import { extractTextFromPDF } from "@/lib/pdf-parser";
+import { extractTextFromPDF, checkPdfParseQuality } from "@/lib/pdf-parser";
 import { analyzeResearchPaper } from "@/lib/gemini";
 import { prisma } from "@/lib/db";
 import { getOrCreateUser } from "@/lib/auth";
@@ -57,6 +57,11 @@ export async function POST(request: NextRequest) {
 
     const result = await analyzeResearchPaper(text, level);
 
+    const parseWarning = checkPdfParseQuality(text);
+    if (parseWarning) {
+      result.parseQualityWarning = parseWarning;
+    }
+
     // No request: use cookies() from next/headers (recommended for App Router Route Handlers)
     let user: Awaited<ReturnType<typeof getOrCreateUser>> = null;
     try {
@@ -80,7 +85,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ ...result, slug }, { status: 200 });
+    return NextResponse.json({ ...result, slug, extractedText: text }, { status: 200 });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred.";

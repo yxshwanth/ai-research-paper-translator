@@ -1,11 +1,19 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@auth0/nextjs-auth0/client";
-import { Brain, Github, LogIn, LogOut, User, FileText } from "lucide-react";
+import { Brain, Github, LogIn, LogOut, User, FileText, GitCompare } from "lucide-react";
 
 export function Navbar() {
   const { user, isLoading } = useUser();
+  const [logoutHref, setLogoutHref] = useState("/auth/logout");
+
+  useEffect(() => {
+    setLogoutHref(
+      `/auth/logout?returnTo=${encodeURIComponent(window.location.origin)}`
+    );
+  }, []);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
@@ -18,6 +26,13 @@ export function Navbar() {
         <div className="flex items-center gap-2">
           {!isLoading && user && (
             <>
+              <Link
+                href="/compare"
+                className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors hover:bg-muted"
+              >
+                <GitCompare className="h-4 w-4" />
+                <span className="hidden sm:inline">Compare</span>
+              </Link>
               <Link
                 href="/dashboard"
                 className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors hover:bg-muted"
@@ -32,7 +47,7 @@ export function Navbar() {
                 </span>
               </span>
               <a
-                href="/auth/logout"
+                href={logoutHref}
                 className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors hover:bg-muted"
               >
                 <LogOut className="h-4 w-4" />

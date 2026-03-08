@@ -5,7 +5,7 @@ import { useDropzone } from "react-dropzone";
 import { motion } from "framer-motion";
 import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import type { AnalysisResult, UserLevel } from "@/lib/types";
-import { LoadingState } from "./LoadingState";
+import { SteppedProgress } from "./SteppedProgress";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
@@ -24,6 +24,15 @@ export function FileUpload({ onResult }: FileUploadProps) {
   const [level, setLevel] = useState<UserLevel>("intermediate");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{
+    phase: "extracting" | "analyzing" | "finalizing";
+    extractingDone: boolean;
+    analyzingDone: boolean;
+  }>({
+    phase: "extracting",
+    extractingDone: false,
+    analyzingDone: false,
+  });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const selectedFile = acceptedFiles[0];
@@ -56,25 +65,63 @@ export function FileUpload({ onResult }: FileUploadProps) {
 
     setIsUploading(true);
     setError(null);
+    setProgress({ phase: "extracting", extractingDone: false, analyzingDone: false });
+
+    const formData = new FormData();
+    formData.append("paper", file);
+    formData.append("level", level);
 
     try {
-      const formData = new FormData();
-      formData.append("paper", file);
-      formData.append("level", level);
-
-      const response = await fetch("/api/analyze", {
+      const response = await fetch("/api/analyze/stream", {
         method: "POST",
         body: formData,
         credentials: "include",
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}));
         throw new Error(data.error ?? "Analysis failed.");
       }
 
-      onResult(data as AnalysisResult);
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        let event: string | null = null;
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            event = line.slice(7).trim();
+          } else if (line.startsWith("data: ") && event) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (event === "progress") {
+                setProgress((p) => ({
+                  phase: data.phase ?? p.phase,
+                  extractingDone: data.phase === "extracting" && data.done ? true : p.extractingDone,
+                  analyzingDone: data.phase === "analyzing" && data.done ? true : p.analyzingDone,
+                }));
+              } else if (event === "done") {
+                onResult(data as AnalysisResult);
+                setIsUploading(false);
+                return;
+              } else if (event === "error") {
+                throw new Error(data.error ?? "Analysis failed.");
+              }
+            } catch (e) {
+              if (e instanceof SyntaxError) continue;
+              throw e;
+            }
+            event = null;
+          }
+        }
+      }
+      setError("Analysis ended without result.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred.");
     } finally {
@@ -88,7 +135,13 @@ export function FileUpload({ onResult }: FileUploadProps) {
   };
 
   if (isUploading) {
-    return <LoadingState />;
+    return (
+      <SteppedProgress
+        currentPhase={progress.phase}
+        extractingDone={progress.extractingDone}
+        analyzingDone={progress.analyzingDone}
+      />
+    );
   }
 
   return (

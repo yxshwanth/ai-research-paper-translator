@@ -11,6 +11,7 @@ import { AlertCircle, ArrowLeft } from "lucide-react";
 interface FetchedAnalysis {
   result: AnalysisResult;
   fileName: string | null;
+  level: string | null;
   createdAt: string;
 }
 
@@ -73,6 +74,30 @@ export default function SharePage() {
 
         {data && !loading && (
           <div className="mb-20">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="mb-8 rounded-2xl border border-border bg-card p-6"
+            >
+              <h2 className="text-xl font-heading text-foreground mb-1">
+                {data.fileName ? data.fileName.replace(/\.pdf$/i, "") : "Research paper"}
+              </h2>
+              <p className="text-sm text-muted-foreground mb-2">
+                {data.level ? `Analyzed at: ${data.level.charAt(0).toUpperCase() + data.level.slice(1)}` : "Shared with you"}
+              </p>
+              <p className="text-sm text-foreground/90">
+                {data.result.summary?.split(/[.!?]/)[0]
+                  ? `${data.result.summary.split(/[.!?]/)[0].trim()}.`
+                  : "Paper analysis shared with you."}
+              </p>
+              <Link
+                href="/"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                Analyze your own paper
+              </Link>
+            </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}

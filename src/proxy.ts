@@ -32,7 +32,7 @@ async function rebodyResponse(res: Response): Promise<NextResponse> {
   return new NextResponse(body, { status, headers });
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (!isAuth0Configured) {
     return NextResponse.next();
   }
@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
     return await rebodyResponse(res);
   } catch (err) {
     // Auth0 SDK can throw in Edge (e.g. undefined pathname/domain). Fallback so app still loads.
-    console.error("[Auth0 middleware]", err);
+    console.error("[Auth0 proxy]", err);
     return NextResponse.next();
   }
 }

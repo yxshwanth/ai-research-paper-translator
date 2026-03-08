@@ -55,13 +55,13 @@ export async function POST(request: NextRequest) {
   const eli12 = String(result?.eli12 ?? "");
 
   try {
-    const answer = await askAboutPaper(
+    const { answer, suggestedFollowUp } = await askAboutPaper(
       analysis.paperText,
       { summary, keyContributions, concepts, eli12 },
       question.trim(),
       Array.isArray(history) ? history : undefined
     );
-    return NextResponse.json({ answer }, { status: 200 });
+    return NextResponse.json({ answer, suggestedFollowUp }, { status: 200 });
   } catch (err) {
     console.error("[POST /api/paper/ask]", err);
     const message =

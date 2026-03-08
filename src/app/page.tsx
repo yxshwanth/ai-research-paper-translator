@@ -1,22 +1,113 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { FileUpload } from "@/components/FileUpload";
 import { ResultsView } from "@/components/ResultsView";
-import { Upload, Brain, Sparkles } from "lucide-react";
+import { Upload, Brain, Sparkles, Share2, X } from "lucide-react";
 import type { AnalyzeResponse } from "@/lib/types";
-import { useState } from "react";
+
+const SESSION_KEY = "paper-explainer-last-result";
+
+function SharePromptBanner({
+  slug,
+  onDismiss,
+}: {
+  slug: string;
+  onDismiss: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 12000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+
+  const handleCopy = async () => {
+    const url = typeof window !== "undefined" ? `${window.location.origin}/share/${slug}` : "";
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 p-4"
+    >
+      <p className="text-sm text-foreground">
+        Save your results — copy the share link to revisit this analysis later.
+      </p>
+      <div className="flex items-center gap-2">
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleCopy}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <Share2 className="h-4 w-4" />
+          {copied ? "Copied!" : "Copy link"}
+        </motion.button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+          aria-label="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </motion.div>
+  );
+}
 
 export default function Home() {
   const [result, setResult] = useState<AnalyzeResponse | null>(null);
+  const [sharePromptDismissed, setSharePromptDismissed] = useState(false);
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const saved = typeof window !== "undefined" ? sessionStorage.getItem(SESSION_KEY) : null;
+      if (saved) {
+        const parsed = JSON.parse(saved) as AnalyzeResponse;
+        if (parsed?.summary && parsed?.slug != null) setResult(parsed);
+      }
+    } catch {
+      // ignore invalid stored data
+    }
+  }, []);
+
+  useEffect(() => {
+    if (result?.slug != null) {
+      try {
+        sessionStorage.setItem(
+          SESSION_KEY,
+          JSON.stringify({
+            ...result,
+            extractedText: result.extractedText,
+          })
+        );
+      } catch {
+        // ignore quota etc.
+      }
+    }
+  }, [result]);
 
   useEffect(() => {
     if (result) {
       resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   }, [result]);
+
+  const handleAnalyzeAnother = () => {
+    setResult(null);
+    setSharePromptDismissed(false);
+    try {
+      sessionStorage.removeItem(SESSION_KEY);
+    } catch {}
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   return (
     <div className="min-h-screen bg-background" style={{ fontFamily: "var(--font-sans)" }}>
@@ -194,15 +285,20 @@ export default function Home() {
         {/* Results Section */}
         {result && (
           <div ref={resultsRef} className="mb-20">
+            {result.slug && !sharePromptDismissed && (
+              <SharePromptBanner
+                slug={result.slug}
+                onDismiss={() => setSharePromptDismissed(true)}
+              />
+            )}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <ResultsView result={result} slug={result.slug} />
+              <ResultsView result={result} slug={result.slug} extractedText={result.extractedText} />
             </motion.div>
 
-            {/* Upload Another Button */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -212,10 +308,7 @@ export default function Home() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setResult(null);
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
+                onClick={handleAnalyzeAnother}
                 className="rounded-xl border-2 border-accent bg-transparent px-8 py-3 text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
               >
                 Analyze Another Paper
