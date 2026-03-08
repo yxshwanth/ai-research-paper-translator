@@ -15,18 +15,32 @@ export async function analyzeResearchPaper(
     generationConfig: {
       responseMimeType: "application/json",
       temperature: 0.4,
-      maxOutputTokens: 4096,
+      maxOutputTokens: 8192,
     },
   });
 
-  const prompt = `You are an expert academic tutor. Analyze the following research paper and return a JSON object with exactly this structure: { "summary": "...", "keyContributions": ["..."], "concepts": [{"term": "...", "explanation": "..."}], "eli12": "...", "quizQuestions": [{"question": "...", "options": ["A","B","C","D"], "correctAnswer": 0, "explanation": "..."}] }
+  const prompt = `You are an expert academic tutor and research analyst. Analyze the following research paper and return a JSON object with exactly this structure: { "summary": "...", "keyContributions": ["..."], "concepts": [{"term": "...", "explanation": "..."}], "eli12": "...", "quizQuestions": [{"question": "...", "options": ["A","B","C","D"], "correctAnswer": 0, "explanation": "..."}] }
 
 Rules:
-- summary: 3-5 sentences, no jargon, plain language
-- keyContributions: 3-6 items describing what the paper introduces
-- concepts: 5-8 technical terms with simple one-sentence explanations
-- eli12: explain the paper as if talking to a 12-year-old, use fun analogies
-- quizQuestions: exactly 5 multiple choice questions, 4 options each, correctAnswer is zero-indexed
+
+**summary** (technical, 4-7 sentences):
+- State the research problem and its significance
+- Describe the methodology, architecture, or key algorithms used (use proper technical terms)
+- Include concrete results: metrics (accuracy, F1, latency, etc.), benchmarks, or quantitative findings
+- Mention the main technical innovation or contribution
+- Use domain-appropriate terminology (e.g., transformers, attention, loss functions, optimization)
+
+**keyContributions**: 3-6 items describing what the paper introduces (technical phrasing)
+
+**concepts** (6-10 terms, technically detailed):
+- For each term: 2-4 sentence explanation with real technical depth
+- Include: formal definition, how it works in this paper, formulas/equations when relevant (use plain text, e.g. "softmax(x_i) = exp(x_i) / sum(exp(x_j))")
+- Cover core algorithms, architectures, loss functions, evaluation metrics, and domain-specific techniques from the paper
+- Explain relationships between concepts when they interact in the paper
+
+**eli12**: explain the paper as if talking to a 12-year-old, use fun analogies (keep this accessible)
+
+**quizQuestions**: exactly 5 multiple choice questions, 4 options each, correctAnswer is zero-indexed (can test technical understanding)
 
 Return ONLY valid JSON. No markdown, no code fences, no extra text.
 

@@ -33,9 +33,11 @@ export function ConceptsExplainer({ concepts }: ConceptsExplainerProps) {
             </div>
           </AccordionTrigger>
           <AccordionContent className="overflow-hidden px-6 pb-4">
-            <p className="pt-2 text-base leading-relaxed text-foreground/80 pl-8">
-              {concept.explanation}
-            </p>
+            <div className="pt-2 text-base leading-relaxed text-foreground/80 pl-8 space-y-2">
+              {concept.explanation.split(/\n\n+/).map((para, i) => (
+                <p key={i}>{para}</p>
+              ))}
+            </div>
           </AccordionContent>
         </AccordionItem>
       ))}
