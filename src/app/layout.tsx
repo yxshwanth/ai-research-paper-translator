@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display, Source_Sans_3 } from "next/font/google";
+import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 
@@ -8,7 +8,7 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
 });
 
-const sourceSans = Source_Sans_3({
+const inter = Inter({
   variable: "--font-sans",
   subsets: ["latin"],
 });
@@ -24,9 +24,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        className={`${playfair.variable} ${sourceSans.variable} font-sans antialiased`}
+        className={`${playfair.variable} ${inter.variable} font-sans antialiased`}
+        suppressHydrationWarning
       >
         <Navbar />
         {children}

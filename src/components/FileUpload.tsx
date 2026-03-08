@@ -3,8 +3,7 @@
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion } from "framer-motion";
-import { FileText, Upload, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Upload, FileText, X, AlertCircle } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
 import { LoadingState } from "./LoadingState";
 
@@ -20,9 +19,10 @@ export function FileUpload({ onResult }: FileUploadProps) {
   const [error, setError] = useState<string | null>(null);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    setError(null);
-    if (acceptedFiles.length > 0) {
-      setFile(acceptedFiles[0]);
+    const selectedFile = acceptedFiles[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setError(null);
     }
   }, []);
 
@@ -73,9 +73,9 @@ export function FileUpload({ onResult }: FileUploadProps) {
     }
   };
 
-  const handleRetry = () => {
-    setError(null);
+  const removeFile = () => {
     setFile(null);
+    setError(null);
   };
 
   if (isUploading) {
@@ -83,66 +83,89 @@ export function FileUpload({ onResult }: FileUploadProps) {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto space-y-4">
-      <div
-        {...getRootProps()}
-        className={`
-          relative border-2 border-dashed rounded-xl p-12 cursor-pointer transition-all duration-200
-          ${isDragActive ? "border-[#1a2332] bg-[#f5f5f0]" : "border-[#c4b8a8] hover:border-[#1a2332]/60 hover:bg-[#fafaf7]"}
-          bg-[#FAFAF7]
-        `}
-      >
-        <input {...getInputProps()} />
-        <div className="flex flex-col items-center gap-4 text-center">
-          <motion.div
-            animate={{ scale: isDragActive ? 1.05 : 1 }}
+    <div className="w-full max-w-2xl mx-auto">
+      {!file ? (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div
+            {...getRootProps()}
+            className={`
+              relative cursor-pointer rounded-2xl border-2 border-dashed p-12 text-center transition-all
+              ${isDragActive ? "border-accent bg-accent/5 scale-[1.02]" : "border-border hover:border-accent/50 hover:bg-muted/30"}
+            `}
+          >
+            <input {...getInputProps()} />
+            <motion.div
+            animate={isDragActive ? { scale: 1.1 } : { scale: 1 }}
             transition={{ duration: 0.2 }}
-            className="rounded-full bg-[#1a2332]/5 p-4"
           >
-            <FileText className="h-12 w-12 text-[#1a2332]" strokeWidth={1.5} />
+            <Upload className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
           </motion.div>
-          <div>
-            <p className="font-heading text-xl text-[#1a2332] mb-1">
-              {isDragActive ? "Drop your PDF here" : "Drag & drop your research paper"}
-            </p>
-            <p className="text-sm text-[#1a2332]/70">
-              or click to browse · PDF only · max 10 MB
-            </p>
+          <h3 className="text-2xl mb-2 text-foreground font-heading">
+            {isDragActive ? "Drop your paper here" : "Upload Research Paper"}
+          </h3>
+          <p className="text-muted-foreground mb-4">
+            Drag and drop a PDF file here, or click to browse
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Maximum file size: 10 MB • Only PDF files accepted
+          </p>
           </div>
-        </div>
-      </div>
-
-      {file && (
-        <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between gap-4 p-4 rounded-xl bg-white border border-[#e8e4dc] shadow-sm"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <FileText className="h-8 w-8 text-[#1a2332] shrink-0" />
-            <span className="text-[#1a2332] font-medium truncate">{file.name}</span>
-          </div>
-          <Button
-            onClick={handleUpload}
-            className="bg-[#1a2332] hover:bg-[#1a2332]/90 text-white shrink-0"
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Analyze Paper
-          </Button>
         </motion.div>
-      )}
-
-      {error && (
+      ) : (
         <motion.div
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="space-y-4"
         >
-          <AlertCircle className="h-5 w-5 shrink-0" />
-          <p className="flex-1 text-sm">{error}</p>
-          <Button variant="outline" size="sm" onClick={handleRetry}>
-            Retry
-          </Button>
+          <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+            <div className="flex items-center gap-3">
+              <FileText className="h-8 w-8 text-accent" />
+              <div>
+                <p className="font-medium text-foreground">{file.name}</p>
+                <p className="text-sm text-muted-foreground">
+                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={removeFile}
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Remove file"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 p-4"
+            >
+              <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm text-destructive">{error}</p>
+                <button
+                  onClick={() => setError(null)}
+                  className="mt-2 text-sm underline underline-offset-2 hover:no-underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleUpload}
+            className="w-full rounded-xl bg-primary px-8 py-4 text-lg text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Analyze Paper
+          </motion.button>
         </motion.div>
       )}
     </div>

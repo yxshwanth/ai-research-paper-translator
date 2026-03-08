@@ -1,106 +1,90 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Brain, FileText, Lightbulb, CheckCircle } from "lucide-react";
 
-const STATUS_MESSAGES = [
-  "Reading your paper...",
-  "Extracting key ideas...",
-  "Generating quiz questions...",
-  "Almost done...",
+const statusMessages = [
+  { text: "Reading your paper...", icon: FileText },
+  { text: "Extracting key ideas...", icon: Brain },
+  { text: "Generating quiz questions...", icon: Lightbulb },
+  { text: "Almost done...", icon: CheckCircle },
 ];
 
 export function LoadingState() {
-  const [messageIndex, setMessageIndex] = useState(0);
-  const [progress, setProgress] = useState(0);
+  const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % STATUS_MESSAGES.length);
+      setCurrentMessageIndex((prev) => (prev + 1) % statusMessages.length);
     }, 3000);
+
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 90) return prev;
-        return prev + Math.random() * 8 + 2;
-      });
-    }, 800);
-    return () => clearInterval(progressInterval);
-  }, []);
+  const CurrentIcon = statusMessages[currentMessageIndex].icon;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0 }}
-      className="w-full max-w-md mx-auto p-8 rounded-2xl bg-white border border-[#e8e4dc] shadow-lg"
-    >
-      <div className="flex flex-col items-center gap-6">
+    <div className="flex min-h-[400px] flex-col items-center justify-center px-4 py-12">
+      <motion.div
+        animate={{
+          scale: [1, 1.1, 1],
+          rotate: [0, 5, -5, 0],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+        className="mb-8"
+      >
+        <Brain className="h-20 w-20 text-accent" />
+      </motion.div>
+
+      <AnimatePresence mode="wait">
         <motion.div
-          animate={{
-            scale: [1, 1.1, 1],
-            opacity: [0.8, 1, 0.8],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="rounded-full bg-[#1a2332]/10 p-6"
+          key={currentMessageIndex}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.3 }}
+          className="flex items-center gap-3"
         >
-          <Brain className="h-16 w-16 text-[#1a2332]" strokeWidth={1.5} />
+          <CurrentIcon className="h-5 w-5 text-muted-foreground" />
+          <p className="text-xl text-foreground">
+            {statusMessages[currentMessageIndex].text}
+          </p>
         </motion.div>
+      </AnimatePresence>
 
-        <div className="text-center space-y-2">
-          <h3 className="font-heading text-xl text-[#1a2332]">
-            Analyzing your paper
-          </h3>
-          <AnimatePresence mode="wait">
-            <motion.p
-              key={messageIndex}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.3 }}
-              className="text-[#1a2332]/70 text-sm"
-            >
-              {STATUS_MESSAGES[messageIndex]}
-            </motion.p>
-          </AnimatePresence>
-        </div>
+      <div className="mt-8 flex gap-2">
+        {[0, 1, 2, 3].map((i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0.3 }}
+            animate={{
+              opacity: i === currentMessageIndex ? 1 : 0.3,
+              scale: i === currentMessageIndex ? 1.2 : 1,
+            }}
+            transition={{ duration: 0.3 }}
+            className="h-2 w-2 rounded-full bg-accent"
+          />
+        ))}
+      </div>
 
-        <div className="w-full space-y-2">
-          <Progress value={progress} className="h-2" />
-          <div className="flex justify-between">
-            <span className="text-xs text-[#1a2332]/50">Progress</span>
-            <span className="text-xs text-[#1a2332]/70">
-              {Math.round(progress)}%
-            </span>
-          </div>
-        </div>
-
-        <div className="flex gap-1">
-          {[0, 1, 2].map((i) => (
-            <motion.span
-              key={i}
-              animate={{
-                opacity: [0.3, 1, 0.3],
-              }}
-              transition={{
-                duration: 1.2,
-                repeat: Infinity,
-                delay: i * 0.2,
-              }}
-              className="w-2 h-2 rounded-full bg-[#1a2332]"
-            />
-          ))}
+      <div className="mt-8 w-full max-w-md">
+        <div className="h-2 overflow-hidden rounded-full bg-muted">
+          <motion.div
+            className="h-full bg-accent"
+            initial={{ width: "0%" }}
+            animate={{ width: "100%" }}
+            transition={{
+              duration: 12,
+              ease: "linear",
+            }}
+          />
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

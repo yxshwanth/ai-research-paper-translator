@@ -1,7 +1,7 @@
 "use client";
 
-import { CheckCircle2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Star } from "lucide-react";
+import { motion } from "framer-motion";
 
 interface KeyContributionsProps {
   contributions: string[];
@@ -9,26 +9,33 @@ interface KeyContributionsProps {
 
 export function KeyContributions({ contributions }: KeyContributionsProps) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {contributions.map((contribution, index) => (
-        <Card
+        <motion.div
           key={index}
-          className="border-[#e8e4dc] bg-white hover:bg-[#FAFAF7] transition-colors"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: index * 0.1 }}
+          className="group relative rounded-xl border border-border bg-card p-6 transition-all hover:border-accent/50 hover:shadow-md"
         >
-          <CardContent className="py-4">
-            <div className="flex items-start gap-3">
-              <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[#1a2332]/10 shrink-0">
-                <span className="text-sm font-semibold text-[#1a2332]">
-                  {index + 1}
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent">
+                <Star className="h-5 w-5 fill-accent" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-sm font-medium text-accent">
+                  Contribution {index + 1}
                 </span>
               </div>
-              <CheckCircle2 className="h-5 w-5 text-[#1a2332] mt-0.5 shrink-0" />
-              <p className="text-[#1a2332] leading-relaxed flex-1">
+              <p className="text-base leading-relaxed text-foreground/90">
                 {contribution}
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </motion.div>
       ))}
     </div>
   );
