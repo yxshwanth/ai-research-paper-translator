@@ -93,6 +93,5 @@ npm run db:studio # Prisma Studio
 - **Database:** PostgreSQL required for analyses, quiz, flashcards
 - **Auth0:** Add production callback and logout URLs
 
-## License
-
-MIT
+## Demo recording
+https://drive.google.com/file/d/1qMmLNVuWcvcVT0zyHcQO7IAKppKIq-b6/view?usp=sharing

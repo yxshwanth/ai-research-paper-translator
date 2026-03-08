@@ -14,7 +14,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "AI Research Paper Translator",
+  title: "AI Research Paper Explanator",
   description: "Make research papers easy to understand with AI",
 };
 
