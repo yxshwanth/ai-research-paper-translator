@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { motion } from "framer-motion";
 import { Upload, FileText, X, AlertCircle } from "lucide-react";
-import type { AnalysisResult } from "@/lib/types";
+import type { AnalysisResult, UserLevel } from "@/lib/types";
 import { LoadingState } from "./LoadingState";
 
 const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -13,8 +13,15 @@ interface FileUploadProps {
   onResult: (result: AnalysisResult) => void;
 }
 
+const LEVELS: { value: UserLevel; label: string }[] = [
+  { value: "beginner", label: "Beginner" },
+  { value: "intermediate", label: "Intermediate" },
+  { value: "expert", label: "Expert" },
+];
+
 export function FileUpload({ onResult }: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
+  const [level, setLevel] = useState<UserLevel>("intermediate");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,10 +60,12 @@ export function FileUpload({ onResult }: FileUploadProps) {
     try {
       const formData = new FormData();
       formData.append("paper", file);
+      formData.append("level", level);
 
       const response = await fetch("/api/analyze", {
         method: "POST",
         body: formData,
+        credentials: "include",
       });
 
       const data = await response.json();
@@ -137,6 +146,29 @@ export function FileUpload({ onResult }: FileUploadProps) {
             >
               <X className="h-5 w-5" />
             </button>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-foreground">Level</p>
+            <div className="flex flex-wrap gap-2">
+              {LEVELS.map((l) => (
+                <button
+                  key={l.value}
+                  type="button"
+                  onClick={() => setLevel(l.value)}
+                  className={`rounded-lg border-2 px-4 py-2 text-sm font-medium transition-colors ${
+                    level === l.value
+                      ? "border-accent bg-accent/10 text-accent"
+                      : "border-border bg-card text-foreground hover:border-accent/50"
+                  }`}
+                >
+                  {l.label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Affects depth of explanations and quiz difficulty
+            </p>
           </div>
 
           {error && (

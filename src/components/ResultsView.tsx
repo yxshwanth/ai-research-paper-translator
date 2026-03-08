@@ -1,34 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Download, BookOpen, Star, List, Lightbulb, Brain } from "lucide-react";
+import { Download, BookOpen, Star, List, Lightbulb, Brain, Share2, BookMarked, Layers, MessageCircle } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
 import { SummarySection } from "./SummarySection";
 import { KeyContributions } from "./KeyContributions";
 import { ConceptsExplainer } from "./ConceptsExplainer";
 import { ELI12Section } from "./ELI12Section";
 import { QuizSection } from "./QuizSection";
+import { CitationsSection } from "./CitationsSection";
+import { FlashcardsView } from "./FlashcardsView";
+import { AskSection } from "./AskSection";
 
 const tabs = [
   { value: "summary", label: "Summary", icon: BookOpen },
   { value: "contributions", label: "Key Contributions", icon: Star },
   { value: "concepts", label: "Concepts", icon: List },
   { value: "eli12", label: "ELI12", icon: Lightbulb },
+  { value: "ask", label: "Ask", icon: MessageCircle },
+  { value: "flashcards", label: "Flashcards", icon: Layers },
+  { value: "citations", label: "Citations", icon: BookMarked },
   { value: "quiz", label: "Quiz", icon: Brain },
 ];
 
 interface ResultsViewProps {
   result: AnalysisResult;
+  slug?: string;
 }
 
-export function ResultsView({ result }: ResultsViewProps) {
+export function ResultsView({ result, slug }: ResultsViewProps) {
   const [activeTab, setActiveTab] = useState("summary");
+  const [copied, setCopied] = useState(false);
 
   const handleDownloadPDF = () => {
     alert("Download as PDF coming soon!");
   };
+
+  const handleShare = useCallback(async () => {
+    if (!slug) return;
+    const url = `${window.location.origin}/share/${slug}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [slug]);
 
   return (
     <motion.div
@@ -37,7 +53,7 @@ export function ResultsView({ result }: ResultsViewProps) {
       transition={{ duration: 0.5 }}
       className="w-full max-w-5xl mx-auto"
     >
-      <div className="mb-8 flex items-center justify-between">
+      <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-4xl font-heading text-foreground mb-2">
             Analysis Results
@@ -46,15 +62,28 @@ export function ResultsView({ result }: ResultsViewProps) {
             Your research paper has been analyzed and simplified
           </p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={handleDownloadPDF}
-          className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted"
-        >
-          <Download className="h-4 w-4" />
-          Download PDF
-        </motion.button>
+        <div className="flex items-center gap-2">
+          {slug && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleShare}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted"
+            >
+              <Share2 className="h-4 w-4" />
+              {copied ? "Copied!" : "Copy link"}
+            </motion.button>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleDownloadPDF}
+            className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm transition-colors hover:bg-muted"
+          >
+            <Download className="h-4 w-4" />
+            Download PDF
+          </motion.button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -91,8 +120,17 @@ export function ResultsView({ result }: ResultsViewProps) {
         <TabsContent value="eli12" className="mt-0 focus:outline-none">
           <ELI12Section eli12={result.eli12} />
         </TabsContent>
+        <TabsContent value="ask" className="mt-0 focus:outline-none">
+          <AskSection slug={slug} />
+        </TabsContent>
+        <TabsContent value="flashcards" className="mt-0 focus:outline-none">
+          <FlashcardsView concepts={result.concepts} slug={slug} />
+        </TabsContent>
+        <TabsContent value="citations" className="mt-0 focus:outline-none">
+          <CitationsSection citations={result.citations ?? []} />
+        </TabsContent>
         <TabsContent value="quiz" className="mt-0 focus:outline-none">
-          <QuizSection quizQuestions={result.quizQuestions} />
+          <QuizSection quizQuestions={result.quizQuestions} slug={slug} />
         </TabsContent>
       </Tabs>
     </motion.div>

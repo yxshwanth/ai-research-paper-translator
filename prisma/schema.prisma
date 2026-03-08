@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String          @id @default(cuid())
+  auth0Id        String          @unique
+  email          String?
+  name           String?
+  createdAt      DateTime        @default(now())
+
+  analyses       Analysis[]
+  quizAttempts   QuizAttempt[]
+  conceptReviews ConceptReview[]
+
+  @@index([auth0Id])
+}
+
+model Analysis {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  userId    String?
+  fileName  String?
+  paperText String   @db.Text
+  result    Json
+  level     String?  // beginner | intermediate | expert
+  createdAt DateTime @default(now())
+
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  quizAttempts    QuizAttempt[]
+  conceptReviews  ConceptReview[]
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  analysisId String
+  score      Int
+  total      Int
+  answers    Json     // [{ questionIndex, selectedAnswer, correct }]
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([analysisId])
+}
+
+model ConceptReview {
+  id          String   @id @default(cuid())
+  userId      String
+  analysisId  String
+  conceptIndex Int     // index into result.concepts
+  nextReviewAt DateTime @default(now())
+  interval    Int      @default(0)  // days
+  easeFactor  Float    @default(2.5)
+  createdAt   DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis Analysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, analysisId, conceptIndex])
+  @@index([userId])
+  @@index([analysisId])
+  @@index([nextReviewAt])
+}

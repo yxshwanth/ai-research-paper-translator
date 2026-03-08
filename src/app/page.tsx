@@ -5,11 +5,11 @@ import { motion } from "framer-motion";
 import { FileUpload } from "@/components/FileUpload";
 import { ResultsView } from "@/components/ResultsView";
 import { Upload, Brain, Sparkles } from "lucide-react";
-import type { AnalysisResult } from "@/lib/types";
+import type { AnalyzeResponse } from "@/lib/types";
 import { useState } from "react";
 
 export default function Home() {
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [result, setResult] = useState<AnalyzeResponse | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -199,7 +199,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              <ResultsView result={result} />
+              <ResultsView result={result} slug={result.slug} />
             </motion.div>
 
             {/* Upload Another Button */}

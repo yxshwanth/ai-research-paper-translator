@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { nanoid } from "nanoid";
 import { extractTextFromPDF } from "@/lib/pdf-parser";
 import { analyzeResearchPaper } from "@/lib/gemini";
+import { prisma } from "@/lib/db";
+import { getOrCreateUser } from "@/lib/auth";
+import type { UserLevel } from "@/lib/types";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MIN_TEXT_LENGTH = 100;
@@ -9,6 +13,11 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("paper");
+    const levelRaw = formData.get("level");
+    const level: UserLevel =
+      levelRaw === "beginner" || levelRaw === "expert"
+        ? levelRaw
+        : "intermediate";
 
     if (!file || !(file instanceof File)) {
       return NextResponse.json(
@@ -46,12 +55,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await analyzeResearchPaper(text);
+    const result = await analyzeResearchPaper(text, level);
 
-    return NextResponse.json(result, { status: 200 });
+    // No request: use cookies() from next/headers (recommended for App Router Route Handlers)
+    let user: Awaited<ReturnType<typeof getOrCreateUser>> = null;
+    try {
+      user = await getOrCreateUser();
+    } catch {
+      // Guest or invalid session: continue without saving user
+    }
+
+    let slug: string | undefined;
+    if (prisma) {
+      slug = nanoid(10);
+      await prisma.analysis.create({
+        data: {
+          slug,
+          userId: user?.id ?? null,
+          fileName: file.name,
+          paperText: text,
+          result: result as object,
+          level,
+        },
+      });
+    }
+
+    return NextResponse.json({ ...result, slug }, { status: 200 });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred.";
+    console.error("[POST /api/analyze]", error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

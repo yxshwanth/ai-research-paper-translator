@@ -1,60 +1,152 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle, XCircle, RotateCcw, Trophy } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw, Trophy, History } from "lucide-react";
 import type { AnalysisResult } from "@/lib/types";
+import { normalizeQuizQuestion } from "@/lib/types";
 
 interface QuizSectionProps {
   quizQuestions: AnalysisResult["quizQuestions"];
+  slug?: string;
 }
 
-export function QuizSection({ quizQuestions }: QuizSectionProps) {
+interface AnswerRecord {
+  questionIndex: number;
+  selectedAnswer: number | boolean | string;
+  correct: boolean;
+}
+
+export function QuizSection({ quizQuestions, slug }: QuizSectionProps) {
+  const normalized = useMemo(
+    () =>
+      quizQuestions.map((q) =>
+        normalizeQuizQuestion(q as unknown as Record<string, unknown>)
+      ),
+    [quizQuestions]
+  );
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<number | boolean | string | null>(null);
+  const [fillInValue, setFillInValue] = useState("");
   const [score, setScore] = useState(0);
   const [showExplanation, setShowExplanation] = useState(false);
   const [quizComplete, setQuizComplete] = useState(false);
+  const [answers, setAnswers] = useState<AnswerRecord[]>([]);
+  const [lastAttempt, setLastAttempt] = useState<{ score: number; total: number; createdAt: string } | null>(null);
 
-  const question = quizQuestions[currentQuestion];
-  const isCorrect = selectedAnswer === question.correctAnswer;
+  useEffect(() => {
+    if (!slug) return;
+    fetch(`/api/analyses/${slug}/quiz-history`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => data?.lastAttempt && setLastAttempt(data.lastAttempt))
+      .catch(() => {});
+  }, [slug]);
 
-  const handleAnswerSelect = (index: number) => {
+  const question = normalized[currentQuestion];
+  const isCorrect = (() => {
+    if (question.type === "multipleChoice")
+      return selectedAnswer === question.correctAnswer;
+    if (question.type === "trueFalse")
+      return selectedAnswer === question.correct;
+    if (question.type === "fillInBlank")
+      return (
+        selectedAnswer !== null &&
+        String(selectedAnswer).trim().toLowerCase() ===
+          question.answer.trim().toLowerCase()
+      );
+    return false;
+  })();
+
+  const handleAnswerSelect = (value: number | boolean | string) => {
     if (selectedAnswer !== null) return;
-
-    setSelectedAnswer(index);
+    setSelectedAnswer(value);
     setShowExplanation(true);
-
-    if (index === question.correctAnswer) {
-      setScore(score + 1);
-    }
+    const correct =
+      question.type === "multipleChoice"
+        ? value === question.correctAnswer
+        : question.type === "trueFalse"
+          ? value === question.correct
+          : String(value).trim().toLowerCase() === question.answer.trim().toLowerCase();
+    if (correct) setScore((s) => s + 1);
+    setAnswers((a) => [
+      ...a,
+      {
+        questionIndex: currentQuestion,
+        selectedAnswer: value,
+        correct,
+      },
+    ]);
   };
 
   const handleNext = () => {
-    if (currentQuestion < quizQuestions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
+    if (currentQuestion < normalized.length - 1) {
+      setCurrentQuestion((c) => c + 1);
       setSelectedAnswer(null);
+      setFillInValue("");
       setShowExplanation(false);
     } else {
       setQuizComplete(true);
+      if (slug && selectedAnswer !== null) {
+        const total = normalized.length;
+        const finalScore = score + (isCorrect ? 1 : 0);
+        const finalAnswers: AnswerRecord[] =
+          answers.length === currentQuestion
+            ? [
+                ...answers,
+                {
+                  questionIndex: currentQuestion,
+                  selectedAnswer,
+                  correct: isCorrect,
+                },
+              ]
+            : answers;
+        fetch(`/api/analyses/${slug}/quiz-attempt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            score: finalScore,
+            total,
+            answers: finalAnswers,
+          }),
+        })
+          .then((res) =>
+            res.ok
+              ? fetch(`/api/analyses/${slug}/quiz-history`, {
+                  credentials: "include",
+                })
+              : null
+          )
+          .then((res) => (res?.ok ? res.json() : null))
+          .then((data) => data?.lastAttempt && setLastAttempt(data.lastAttempt))
+          .catch(() => {});
+      }
     }
   };
 
   const handleRetake = () => {
     setCurrentQuestion(0);
     setSelectedAnswer(null);
+    setFillInValue("");
     setShowExplanation(false);
     setScore(0);
     setQuizComplete(false);
+    setAnswers([]);
   };
 
   if (quizComplete) {
-    const percentage = Math.round((score / quizQuestions.length) * 100);
+    const total = normalized.length;
+    const totalScore =
+      answers.length >= total
+        ? answers.filter((a) => a.correct).length
+        : score + (selectedAnswer !== null && isCorrect ? 1 : 0);
+    const percentage = Math.round((totalScore / total) * 100);
     const getMessage = () => {
-      if (percentage === 100) return "Perfect! You're a master! 🎉";
-      if (percentage >= 80) return "Great job! You really understood this! 🌟";
-      if (percentage >= 60) return "Good work! Keep learning! 📚";
-      return "Nice try! Review the material and try again! 💪";
+      if (percentage === 100) return "Perfect! You're a master!";
+      if (percentage >= 80) return "Great job! You really understood this!";
+      if (percentage >= 60) return "Good work! Keep learning!";
+      return "Nice try! Review the material and try again!";
     };
 
     return (
@@ -69,7 +161,7 @@ export function QuizSection({ quizQuestions }: QuizSectionProps) {
         </h3>
         <div className="mb-6">
           <p className="text-5xl font-heading text-accent mb-2">
-            {score}/{quizQuestions.length}
+            {totalScore}/{total}
           </p>
           <p className="text-xl text-foreground/80">{getMessage()}</p>
         </div>
@@ -88,28 +180,35 @@ export function QuizSection({ quizQuestions }: QuizSectionProps) {
 
   return (
     <div className="space-y-6">
-      {/* Progress */}
+      {lastAttempt && (
+        <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-sm text-muted-foreground">
+          <History className="h-4 w-4" />
+          <span>
+            Last time: {lastAttempt.score}/{lastAttempt.total}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <p className="text-sm text-muted-foreground">
-          Question {currentQuestion + 1} of {quizQuestions.length}
+          Question {currentQuestion + 1} of {normalized.length}
         </p>
         <p className="text-sm text-muted-foreground">
-          Score: {score}/{quizQuestions.length}
+          Score: {score}/{normalized.length}
         </p>
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-muted">
         <motion.div
           className="h-full bg-accent"
-          initial={{ width: 0 }}
+          initial={false}
           animate={{
-            width: `${((currentQuestion + 1) / quizQuestions.length) * 100}%`,
+            width: `${((currentQuestion + 1) / normalized.length) * 100}%`,
           }}
           transition={{ duration: 0.3 }}
         />
       </div>
 
-      {/* Question */}
       <AnimatePresence mode="wait">
         <motion.div
           key={currentQuestion}
@@ -120,83 +219,131 @@ export function QuizSection({ quizQuestions }: QuizSectionProps) {
           className="space-y-6"
         >
           <div className="rounded-xl border border-border bg-card p-6">
-            <h3 className="text-xl text-foreground">{question.question}</h3>
+            <h3 className="text-xl text-foreground">
+              {question.type === "multipleChoice"
+                ? question.question
+                : question.type === "trueFalse"
+                  ? question.statement
+                  : question.question}
+            </h3>
           </div>
 
-          {/* Options */}
-          <div className="grid gap-3">
-            {question.options.map((option, index) => {
-              const isSelected = selectedAnswer === index;
-              const isCorrectAnswer = index === question.correctAnswer;
-              const showCorrect = selectedAnswer !== null && isCorrectAnswer;
-              const showIncorrect = isSelected && !isCorrect;
-
-              return (
-                <motion.button
-                  key={index}
-                  whileHover={selectedAnswer === null ? { scale: 1.01 } : {}}
-                  whileTap={selectedAnswer === null ? { scale: 0.99 } : {}}
-                  onClick={() => handleAnswerSelect(index)}
-                  disabled={selectedAnswer !== null}
-                  className={`
-                    relative flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all
-                    ${
+          {question.type === "multipleChoice" && (
+            <div className="grid gap-3">
+              {question.options.map((option, index) => {
+                const isSelected = selectedAnswer === index;
+                const isCorrectAnswer = index === question.correctAnswer;
+                const showCorrect = selectedAnswer !== null && isCorrectAnswer;
+                const showIncorrect = isSelected && !isCorrect;
+                return (
+                  <motion.button
+                    key={index}
+                    whileHover={selectedAnswer === null ? { scale: 1.01 } : {}}
+                    whileTap={selectedAnswer === null ? { scale: 0.99 } : {}}
+                    onClick={() => handleAnswerSelect(index)}
+                    disabled={selectedAnswer !== null}
+                    className={`relative flex items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
                       showCorrect
                         ? "border-green-500 bg-green-50"
                         : showIncorrect
-                        ? "border-red-500 bg-red-50"
-                        : isSelected
-                        ? "border-accent bg-accent/5"
-                        : "border-border bg-card hover:border-accent/50 hover:bg-muted/30"
-                    }
-                    ${selectedAnswer !== null ? "cursor-default" : "cursor-pointer"}
-                  `}
-                >
-                  <div
-                    className={`
-                    flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors
-                    ${
-                      showCorrect
-                        ? "border-green-500 bg-green-500"
-                        : showIncorrect
-                        ? "border-red-500 bg-red-500"
-                        : isSelected
-                        ? "border-accent bg-accent"
-                        : "border-muted-foreground/30"
-                    }
-                  `}
+                          ? "border-red-500 bg-red-50"
+                          : isSelected
+                            ? "border-accent bg-accent/5"
+                            : "border-border bg-card hover:border-accent/50 hover:bg-muted/30"
+                    } ${selectedAnswer !== null ? "cursor-default" : "cursor-pointer"}`}
                   >
-                    {showCorrect ? (
-                      <CheckCircle className="h-5 w-5 text-white" />
-                    ) : showIncorrect ? (
-                      <XCircle className="h-5 w-5 text-white" />
-                    ) : (
-                      <span
-                        className={`text-sm ${
-                          isSelected ? "text-white" : "text-muted-foreground"
-                        }`}
-                      >
-                        {String.fromCharCode(65 + index)}
-                      </span>
-                    )}
-                  </div>
-                  <span
-                    className={`flex-1 ${
+                    <div
+                      className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                        showCorrect
+                          ? "border-green-500 bg-green-500"
+                          : showIncorrect
+                            ? "border-red-500 bg-red-500"
+                            : isSelected
+                              ? "border-accent bg-accent"
+                              : "border-muted-foreground/30"
+                      }`}
+                    >
+                      {showCorrect ? (
+                        <CheckCircle className="h-5 w-5 text-white" />
+                      ) : showIncorrect ? (
+                        <XCircle className="h-5 w-5 text-white" />
+                      ) : (
+                        <span
+                          className={`text-sm ${isSelected ? "text-white" : "text-muted-foreground"}`}
+                        >
+                          {String.fromCharCode(65 + index)}
+                        </span>
+                      )}
+                    </div>
+                    <span
+                      className={`flex-1 ${
+                        showCorrect
+                          ? "text-green-900"
+                          : showIncorrect
+                            ? "text-red-900"
+                            : "text-foreground"
+                      }`}
+                    >
+                      {option}
+                    </span>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
+
+          {question.type === "trueFalse" && (
+            <div className="grid grid-cols-2 gap-3">
+              {([false, true] as const).map((value) => {
+                const isSelected = selectedAnswer === value;
+                const correct = value === question.correct;
+                const showCorrect = selectedAnswer !== null && correct;
+                const showIncorrect = isSelected && !correct;
+                return (
+                  <motion.button
+                    key={String(value)}
+                    whileHover={selectedAnswer === null ? { scale: 1.02 } : {}}
+                    whileTap={selectedAnswer === null ? { scale: 0.98 } : {}}
+                    onClick={() => handleAnswerSelect(value)}
+                    disabled={selectedAnswer !== null}
+                    className={`rounded-xl border-2 p-4 text-lg font-medium transition-all ${
                       showCorrect
-                        ? "text-green-900"
+                        ? "border-green-500 bg-green-50 text-green-900"
                         : showIncorrect
-                        ? "text-red-900"
-                        : "text-foreground"
+                          ? "border-red-500 bg-red-50 text-red-900"
+                          : isSelected
+                            ? "border-accent bg-accent/5"
+                            : "border-border bg-card hover:border-accent/50"
                     }`}
                   >
-                    {option}
-                  </span>
-                </motion.button>
-              );
-            })}
-          </div>
+                    {value ? "True" : "False"}
+                  </motion.button>
+                );
+              })}
+            </div>
+          )}
 
-          {/* Explanation */}
+          {question.type === "fillInBlank" && (
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={fillInValue}
+                onChange={(e) => setFillInValue(e.target.value)}
+                disabled={selectedAnswer !== null}
+                placeholder="Type your answer..."
+                className="w-full rounded-xl border-2 border-border bg-card px-4 py-3 text-foreground placeholder:text-muted-foreground focus:border-accent focus:outline-none disabled:opacity-70"
+              />
+              <button
+                type="button"
+                onClick={() => handleAnswerSelect(fillInValue)}
+                disabled={selectedAnswer !== null || !fillInValue.trim()}
+                className="rounded-xl bg-primary px-6 py-3 text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+              >
+                Check answer
+              </button>
+            </div>
+          )}
+
           <AnimatePresence>
             {showExplanation && (
               <motion.div
@@ -217,16 +364,12 @@ export function QuizSection({ quizQuestions }: QuizSectionProps) {
                   )}
                   <div>
                     <p
-                      className={`mb-2 font-medium ${
-                        isCorrect ? "text-green-900" : "text-red-900"
-                      }`}
+                      className={`mb-2 font-medium ${isCorrect ? "text-green-900" : "text-red-900"}`}
                     >
                       {isCorrect ? "Correct!" : "Not quite right"}
                     </p>
                     <p
-                      className={`text-sm leading-relaxed ${
-                        isCorrect ? "text-green-800" : "text-red-800"
-                      }`}
+                      className={`text-sm leading-relaxed ${isCorrect ? "text-green-800" : "text-red-800"}`}
                     >
                       {question.explanation}
                     </p>
@@ -236,7 +379,6 @@ export function QuizSection({ quizQuestions }: QuizSectionProps) {
             )}
           </AnimatePresence>
 
-          {/* Next Button */}
           {selectedAnswer !== null && (
             <motion.button
               initial={{ opacity: 0, y: 10 }}
@@ -246,7 +388,7 @@ export function QuizSection({ quizQuestions }: QuizSectionProps) {
               onClick={handleNext}
               className="w-full rounded-xl bg-primary px-6 py-3 text-primary-foreground transition-colors hover:bg-primary/90"
             >
-              {currentQuestion < quizQuestions.length - 1
+              {currentQuestion < normalized.length - 1
                 ? "Next Question"
                 : "Finish Quiz"}
             </motion.button>
