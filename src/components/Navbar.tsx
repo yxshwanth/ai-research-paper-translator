@@ -9,7 +9,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
         <Link href="/" className="flex items-center gap-3">
           <Brain className="h-8 w-8 text-accent" />
-          <h1 className="font-heading text-2xl text-foreground">PaperTranslator</h1>
+          <h1 className="font-heading text-2xl text-foreground">PaperLens</h1>
         </Link>
 
         <a

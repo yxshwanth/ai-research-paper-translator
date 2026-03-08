@@ -42,7 +42,7 @@ export default function Home() {
             className="mb-4 text-5xl md:text-6xl lg:text-7xl text-foreground font-heading"
             style={{ fontFamily: "var(--font-heading)" }}
           >
-            AI Research Paper Translator
+            AI Research Paper Explanator
           </h1>
 
           <p className="mx-auto max-w-2xl text-xl text-muted-foreground mb-8">
@@ -139,7 +139,7 @@ export default function Home() {
               className="mt-16 rounded-2xl border border-accent/20 bg-gradient-to-br from-accent/5 to-transparent p-8"
             >
               <h3 className="mb-6 text-center text-2xl text-foreground font-heading" style={{ fontFamily: "var(--font-heading)" }}>
-                Why Students Love PaperTranslator
+                Why Students Love PaperLens
               </h3>
               <div className="grid gap-6 md:grid-cols-2">
                 <div className="flex gap-3">
